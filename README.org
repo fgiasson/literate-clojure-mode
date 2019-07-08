@@ -1,3 +1,13 @@
-* literate-clojure
+* literate-clojure-mode
 
 Set of utilities to complement a clojure literate programming workflow using org-mode.
+
+
+** Installation
+
+In spacemacs, follow these steps to install literate-clojure-mode:
+
+1. git =clone git@github.com:RakutenReady/literate-clojure-mode.git ~/.emacs.d/private/local/literate-clojure-mode=
+2. Add =(literate-clojure-mode :location local)= to =dotspacemacs-additional-packages=
+
+You can now enable =literate-clojure-mode=.
