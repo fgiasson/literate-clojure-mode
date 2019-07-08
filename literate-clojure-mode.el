@@ -1,4 +1,4 @@
-;;; literate-clojure.el --- Tools for literate clojure in org-mode
+;;; literate-clojure-mode.el --- Tools for literate clojure in org-mode
 
 ;; Copyright (C) 2019 Rakuten Ready
 
@@ -44,15 +44,14 @@
   (nth 4 (org-heading-components)))
 
 (defun litclj--count-code-blocks-recur (n stop)
-  (if (and (> (point) stop))
-      (let ((count? (litclj--tangled-clojure-block?)))
-        (progn
-          (ignore-errors (org-babel-previous-src-block))
-          (previous-line)
-          (if count?
-              (litclj--count-code-blocks-recur (+ 1 n) stop)
-            (litclj--count-code-blocks-recur n stop))))
-    n))
+  (condition-case nil
+      (if (and (> (search-backward "#+BEGIN_SRC") stop))
+          (let ((count? (litclj--tangled-clojure-block?)))
+            (if count?
+                (litclj--count-code-blocks-recur (+ 1 n) stop)
+              (litclj--count-code-blocks-recur n stop)))
+        n)
+    (search-failed n)))
 
 (defun litclj--count-code-blocks ()
   (save-excursion
@@ -114,4 +113,4 @@
 
 (provide 'literate-clojure-mode)
 
-;;; literate-clojure.el ends here
+;;; literate-clojure-mode.el ends here
