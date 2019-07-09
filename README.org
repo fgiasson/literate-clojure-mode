@@ -11,3 +11,12 @@ In spacemacs, follow these steps to install literate-clojure-mode:
 2. Add =(literate-clojure-mode :location local)= to =dotspacemacs-additional-packages=
 
 You can now enable =literate-clojure-mode=.
+
+** Configuration
+
+The simplest way to enable =literate-clojure-mode= is via a hook on org-mode
+
+#+BEGIN_SRC emacs-lisp
+(require 'literate-clojure-mode)
+(add-hook 'org-mode-hook 'literate-clojure-mode)
+#+END_SRC
