@@ -15,6 +15,13 @@
 (require 'org)
 (require 'dash)
 
+;; Variables
+
+(defvar litclj-auto-follow-mode t)
+
+(defvar litclj-follow-last-file-id nil)
+(defvar litclj-follow-file-blocks-cache '())
+
 ;; Helper functions
 
 (defun litclj--get-block-tangle-property ()
@@ -78,9 +85,15 @@
     (error block-list)))
 
 (defun litclj--block-name-to-point-assoc-list ()
-  (save-excursion
-    (goto-char (point-min))
-    (litclj--block-name-to-point-assoc-list-recur '())))
+  (let* ((current-file (buffer-file-name))
+         (name-to-point-assoc-list (assoc current-file litclj-follow-file-blocks-cache)))
+    (if name-to-point-assoc-list
+        name-to-point-assoc-list
+      (let ((new-list (save-excursion
+                        (goto-char (point-min))
+                        (litclj--block-name-to-point-assoc-list-recur '()))))
+        (setq litclj-follow-file-blocks-cache (cons `(,current-file . ,new-list) litclj-follow-file-blocks-cache))
+        new-list))))
 
 (defun litclj--block-name-regex (name)
   (concat ";;\s\\[.+\\["
@@ -143,8 +156,19 @@
           (org-overview)
           (goto-char block-point)
           (outline-show-subtree)
-          (goto-char block-point)))
+          (goto-char block-point)
+          (recenter)))
     (error "Not in tangled code")))
+
+(defun litclj-follow ()
+  (interactive)
+  (ignore-errors
+    (let ((file-id (litclj--org-file-and-id)))
+      (unless (eq file-id litclj-follow-last-file-id)
+        (setq litclj-follow-last-file-id file-id)
+        (let ((b (current-buffer)))
+          (litclj-tangle-goto-org)
+          (switch-to-buffer-other-window b))))))
 
 ;;;###autoload
 (define-minor-mode literate-clojure-mode
