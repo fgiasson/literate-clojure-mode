@@ -134,7 +134,13 @@
                                  " ends here")
                          nil t))))
 
-;; Minor mode functions
+(defun litclj--goto-point-subheading (point)
+  "Show the content of the subheading at point."
+  (outline-show-all)
+  (goto-char point)
+  (outline-hide-other))
+
+;; Callable functions
 
 (defun litclj-goto-tangle ()
   (interactive)
@@ -147,13 +153,6 @@
       (beginning-of-line)
       (forward-line)
       (forward-char point-pos))))
-
-(defun litclj--goto-point-subheading (point)
-  "Show the content of the subheading at point."
-  (outline-show-all)
-  (goto-char point)
-  (outline-hide-other))
-
 (defun litclj-tangle-goto-org ()
   (interactive)
   (if (litclj--in-tangled-block?)
@@ -180,12 +179,16 @@
 ;;;###autoload
 (define-minor-mode literate-clojure-mode
   "Tools for literate clojure in org-mode"
+  :keymap
+  `((,(kbd "C-c g") . litclj-go-to-tangle)))
+
+(define-minor-mode literate-clojure-follow-mode
+  "Automatically follow org mode files from tangles clojure files."
   :init nil
-  (if literate-clojure-mode
+  (if (not literate-clojure-mode)
       (progn
         (add-hook 'post-command-hook 'litclj-follow nil t))
     (remove-hook 'post-command-hook 'litclj-follow t)))
 
 (provide 'literate-clojure-mode)
-
 ;;; literate-clojure-mode.el ends here
