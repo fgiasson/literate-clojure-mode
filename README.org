@@ -2,7 +2,6 @@
 
 Set of utilities to complement a clojure literate programming workflow using org-mode.
 
-
 ** Installation
 
 In spacemacs, follow these steps to install literate-clojure-mode:
@@ -14,9 +13,19 @@ You can now enable =literate-clojure-mode=.
 
 ** Configuration
 
-The simplest way to enable =literate-clojure-mode= is via a hook on org-mode
+*** Add Keybindings
+
+You can add keybindings to easily invoke interactive functions provided in the package:
 
 #+BEGIN_SRC emacs-lisp
+(spacemacs/set-leader-keys "o o" 'litclj-tangle-goto-org)
+(spacemacs/set-leader-keys "o t" 'litclj-goto-tangle)
+#+END_SRC
+
+*** Follow mode
+
+The follow mode enables to view in a split window the source of a tangled clojure code block. To enable it by default:
+#+BEGIN_SRC emacs-lisp
 (require 'literate-clojure-mode)
-(add-hook 'org-mode-hook 'literate-clojure-mode)
+(add-hook 'clojure-mode-hook 'literate-clojure-follow-mode)
 #+END_SRC
