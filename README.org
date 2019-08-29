@@ -29,3 +29,12 @@ The follow mode enables to view in a split window the source of a tangled clojur
 (require 'literate-clojure-mode)
 (add-hook 'clojure-mode-hook 'literate-clojure-follow-mode)
 #+END_SRC
+
+*** Auto-detangle mode
+
+The auto detangle mode, as it name suggests, automatically detangles changes made in the clojure source files to the org mode file. To enable it by default:
+
+#+BEGIN_SRC emacs-lisp
+(require 'literate-clojure-mode)
+(add-hook 'clojure-mode-hook 'literate-clojure-auto-detangle-mode)
+#+END_SRC
