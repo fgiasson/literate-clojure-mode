@@ -43,11 +43,8 @@
                nil)
       path)))
 
-(defun litclj--tangled-clojure-block? ()
-  (and (string-equal "clojure"
-                     (nth 0 (org-babel-get-src-block-info)))
-       (not (string-equal "no"
-                          (litclj--get-block-tangle-property)))))
+(defun litclj--tangled-block? ()
+  (not (string-equal "no" (litclj--get-block-tangle-property))))
 
 (defun litclj--previous-heading-point ()
   (save-excursion
@@ -61,7 +58,7 @@
 (defun litclj--count-code-blocks-recur (n stop)
   (condition-case nil
       (if (and (> (org-previous-block 1) stop))
-          (let ((count? (litclj--tangled-clojure-block?)))
+          (let ((count? (litclj--tangled-block?)))
             (if count?
                 (litclj--count-code-blocks-recur (+ 1 n) stop)
               (litclj--count-code-blocks-recur n stop)))
