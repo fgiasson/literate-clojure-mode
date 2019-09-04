@@ -219,6 +219,12 @@
                                         (litclj-detangle-current-block))))))
                   litclj-detangle-timers)))))
 
+(defun litclj--cleanup-auto-detangle ()
+  (mapc (lambda (timer)
+          (cancel-timer (cdr timer)))
+        litclj-detangle-timers)
+  (setq litclj-detangle-timers '()))
+
 (defun litclj--invalid-cache-on-tangle ()
   (setq litclj-follow-file-blocks-cache '()))
 
@@ -243,8 +249,13 @@
   "Automatically detangles clojure files on modification"
   :init nil
   (if literate-clojure-auto-detangle-mode
-      (add-hook 'after-change-functions 'litclj--auto-detangle-current-block nil t)
-    (remove-hook 'after-change-functions 'litclj--auto-detangle-current-block t)))
+      (progn
+        (add-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
+        (add-hook 'after-change-functions 'litclj--auto-detangle-current-block nil t))
+    (progn
+      (litclj--cleanup-auto-detangle)
+      (remove-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
+      (remove-hook 'after-change-functions 'litclj--auto-detangle-current-block t))))
 
 
 (provide 'literate-clojure-mode)
