@@ -262,19 +262,21 @@
 
 (defun litclj--auto-detangle-all (begin end lenght)
   (save-match-data
-    (-let [b (current-buffer)]
-      (litclj--remove-detangle-timer b)
-      (setq litclj-detangle-timers
-            (cons `(,b .
-                       ,(run-at-time litclj-auto-detangle-delay
-                                     nil
-                                     (lambda ()
-                                       (with-current-buffer b
-                                         (save-excursion
-                                           (litclj-detangle-all)
-                                           (litclj--remove-detangle-timer b)
-                                           (litclj-follow t))))))
-                  litclj-detangle-timers)))))
+    (let ((b (current-buffer))
+          (key (buffer-file-name)))
+      (when key ;; temp and special buffers are not associated with a file
+        (litclj--remove-detangle-timer key)
+        (setq litclj-detangle-timers
+              (cons `(,key .
+                           ,(run-at-time litclj-auto-detangle-delay
+                                         nil
+                                         (lambda ()
+                                           (with-current-buffer b
+                                             (save-excursion
+                                               (litclj-detangle-all)
+                                               (litclj-follow t)))
+                                           (litclj--remove-detangle-timer key))))
+                    litclj-detangle-timers))))))
 
 (defun litclj--cleanup-auto-detangle ()
   (mapc (lambda (timer)
