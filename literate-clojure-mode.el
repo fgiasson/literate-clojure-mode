@@ -24,8 +24,11 @@
 (defvar litclj-follow-last-block-infos nil)
 (defvar litclj-follow-file-blocks-cache '())
 (defvar litclj-detangle-timers '())
+(defvar litclj-tangled-block-header "\\[\\[file:\\(.+\\)::.+\\]\\[\\(.+\\)\\]\\]")
 
-;; Helper functions
+;; helper functions
+(defun litclj--invalid-cache-on-tangle ()
+  (setq litclj-follow-file-blocks-cache '()))
 
 (defun litclj--strip-text-properties(txt)
   (set-text-properties 0 (length txt) nil txt)
@@ -43,9 +46,6 @@
                nil)
       path)))
 
-(defun litclj--tangled-block? ()
-  (not (string-equal "no" (litclj--get-block-tangle-property))))
-
 (defun litclj--previous-heading-point ()
   (save-excursion
     (progn
@@ -58,10 +58,7 @@
 (defun litclj--count-code-blocks-recur (n stop)
   (condition-case nil
       (if (and (> (org-previous-block 1) stop))
-          (let ((count? (litclj--tangled-block?)))
-            (if count?
-                (litclj--count-code-blocks-recur (+ 1 n) stop)
-              (litclj--count-code-blocks-recur n stop)))
+          (litclj--count-code-blocks-recur (+ 1 n) stop)
         n)
     (error n)))
 
@@ -88,15 +85,14 @@
               (litclj--block-name-to-point-assoc-list-recur block-list)))
     (error block-list)))
 
-(defun litclj--block-name-to-point-assoc-list ()
-  (let* ((current-file (buffer-file-name))
-         (name-to-point-assoc-list (assoc current-file litclj-follow-file-blocks-cache)))
+(defun litclj--block-name-to-point-assoc-list (org-filepath)
+  (let* ((name-to-point-assoc-list (assoc org-filepath litclj-follow-file-blocks-cache)))
     (if name-to-point-assoc-list
         name-to-point-assoc-list
       (let ((new-list (save-excursion
                         (goto-char (point-min))
                         (litclj--block-name-to-point-assoc-list-recur '()))))
-        (setq litclj-follow-file-blocks-cache (cons `(,current-file . ,new-list) litclj-follow-file-blocks-cache))
+        (setq litclj-follow-file-blocks-cache (cons `(,org-filepath . ,new-list) litclj-follow-file-blocks-cache))
         new-list))))
 
 (defun litclj--block-name-regex (name)
@@ -124,11 +120,9 @@
 (defun litclj--code-block-infos ()
   "Returns the origin file of a code block, its name and its point in the tangled file."
   (save-excursion
-    (let* ((point (re-search-backward org-bracket-link-analytic-regexp nil t))
-           (full-path (match-string 3))
-           (block-name (match-string 5))
-           (path (progn (string-match "::" full-path)
-                        (substring full-path 0 (match-beginning 0)))))
+    (let* ((point (re-search-backward litclj-tangled-block-header nil t))
+           (path (match-string 1))
+           (block-name (match-string 2)))
       `(,point ,path ,block-name))))
 
 (defun litclj--search-block-end (block-name)
@@ -138,7 +132,6 @@
 (defun litclj--in-tangled-block? ()
   (save-excursion
     (-let [(_ _ block-name) (litclj--code-block-infos)]
-
       (litclj--search-block-end block-name))))
 
 (defun litclj--tangled-block-content ()
@@ -170,42 +163,87 @@
       (forward-line)
       (forward-char point-pos))))
 
+(defun litclj--org-block-point (file block-name)
+  (cdr (assoc block-name (litclj--block-name-to-point-assoc-list file))))
+
 (defun litclj-tangle-goto-org ()
   (interactive)
   (if (litclj--in-tangled-block?)
       (-let [(_ path block-name) (litclj--code-block-infos)]
         (find-file-other-window path)
-        (let ((block-point (cdr (assoc block-name (litclj--block-name-to-point-assoc-list)))))
+        (let ((block-point (litclj--org-block-point path block-name)))
           (litclj--goto-point-subheading block-point)
           (recenter)
           (evil-scroll-line-to-bottom (line-number-at-pos))
           (scroll-up-line)))
     (error "Not in tangled code")))
 
+(defun litclj--current-block-size ()
+  (save-window-excursion
+    (litclj-tangle-goto-org)
+    (let ((p (point)))
+      (re-search-forward "#\\+\\(END_SRC\\|end_src\\)")
+      (- (point) p))))
+
+(defun litclj--update-follow-file-blocks-cache (file after-point increment)
+  "When detangling, if we add x characters to the block at point y, we have to increment
+   the point of all blocks after y by x characters"
+  (when-let ((name-to-point-alist (assoc file litclj-follow-file-blocks-cache)))
+    (setcdr
+     (assoc (litclj--strip-text-properties file) litclj-follow-file-blocks-cache)
+     (mapcar (lambda (name-point-elem)
+              (let ((name (car name-point-elem))
+                    (point (cdr name-point-elem)))
+                (if (> point after-point)
+                    `(,name . ,(+ point increment))
+                  name-point-elem)))
+            (cdr name-to-point-alist)))))
+
 (defun litclj-detangle-current-block ()
   (interactive)
-  (let ((b (current-buffer))
-        (content (litclj--tangled-block-content)))
-    (litclj-tangle-goto-org)
-    (org-babel-update-block-body content)
-    (switch-to-buffer-other-window b)))
+  (let ((old-size (litclj--current-block-size))
+        org-file-point)
+    (save-window-excursion
+      (let ((content (litclj--tangled-block-content)))
+        (litclj-tangle-goto-org)
+        (setq org-file-point (point))
+        (org-babel-update-block-body content)))
+    (-let ((new-size (litclj--current-block-size))
+           ((_ block-file block-name) (litclj--code-block-infos)))
+      (litclj--update-follow-file-blocks-cache block-file org-file-point (- new-size old-size)))))
 
-(defun litclj-follow ()
+(defun litclj-detangle-all ()
   (interactive)
-  (ignore-errors
-    (let ((block-infos (litclj--code-block-infos)))
-      (unless (string= (nth 2 block-infos)
-                       (nth 2 litclj-follow-last-block-infos))
-        (let ((b (current-buffer)))
-          (litclj-tangle-goto-org)
-          (switch-to-buffer-other-window b)
-          (setq litclj-follow-last-block-infos block-infos))))))
+  (save-excursion
+    (goto-char 0)
+    (forward-line)
+    (litclj-detangle-current-block)
+    (while (re-search-forward litclj-tangled-block-header nil t)
+      (beginning-of-line 2)
+      (litclj-detangle-current-block))))
+
+(defun litclj-follow (&optional force-follow)
+  (interactive)
+  (save-match-data
+    (ignore-errors
+      (let ((block-infos (litclj--code-block-infos)))
+        (when (or force-follow
+                  (not (string= (nth 2 block-infos)
+                                (nth 2 litclj-follow-last-block-infos))))
+          (let ((b (current-buffer)))
+            (message "Follow")
+            (litclj-tangle-goto-org)
+            (switch-to-buffer-other-window b)
+            (setq litclj-follow-last-block-infos block-infos)))))))
+
+(defun litclj--remove-detangle-timer (key)
+  (when-let (timer (assoc key litclj-detangle-timers))
+    (cancel-timer (cdr timer))
+    (setq litclj-detangle-timers (delq timer litclj-detangle-timers))))
 
 (defun litclj--auto-detangle-current-block (begin end lenght)
   (-let [(_ file name) (litclj--code-block-infos)]
-    (when-let (timer (assoc (litclj--strip-text-properties name) litclj-detangle-timers))
-      (cancel-timer (cdr timer))
-      (setq litclj-detangle-timers (delq timer litclj-detangle-timers)))
+    (litclj--remove-detangle-timer (litclj--strip-text-properties name))
     (let ((current-point (point))
           (b (current-buffer)))
       (setq litclj-detangle-timers
@@ -216,7 +254,24 @@
                                     (with-current-buffer b
                                       (save-excursion
                                         (goto-char current-point)
-                                        (litclj-detangle-current-block))))))
+                                        (litclj-detangle-current-block)
+                                        (litclj--remove-detangle-timer (litclj--strip-text-properties name)))))))
+                  litclj-detangle-timers)))))
+
+(defun litclj--auto-detangle-all (begin end lenght)
+  (save-match-data
+    (-let [b (current-buffer)]
+      (litclj--remove-detangle-timer b)
+      (setq litclj-detangle-timers
+            (cons `(,b .
+                       ,(run-at-time litclj-auto-detangle-delay
+                                     nil
+                                     (lambda ()
+                                       (with-current-buffer b
+                                         (save-excursion
+                                           (litclj-detangle-all)
+                                           (litclj--remove-detangle-timer b)
+                                           (litclj-follow t))))))
                   litclj-detangle-timers)))))
 
 (defun litclj--cleanup-auto-detangle ()
@@ -224,9 +279,6 @@
           (cancel-timer (cdr timer)))
         litclj-detangle-timers)
   (setq litclj-detangle-timers '()))
-
-(defun litclj--invalid-cache-on-tangle ()
-  (setq litclj-follow-file-blocks-cache '()))
 
 ;;;###autoload
 (define-minor-mode literate-clojure-mode
@@ -251,11 +303,11 @@
   (if literate-clojure-auto-detangle-mode
       (progn
         (add-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
-        (add-hook 'after-change-functions 'litclj--auto-detangle-current-block nil t))
+        (add-hook 'after-change-functions 'litclj--auto-detangle-all nil t))
     (progn
       (litclj--cleanup-auto-detangle)
       (remove-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
-      (remove-hook 'after-change-functions 'litclj--auto-detangle-current-block t))))
+      (remove-hook 'after-change-functions 'litclj--auto-detangle-all t))))
 
 
 (provide 'literate-clojure-mode)
