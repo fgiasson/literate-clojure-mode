@@ -86,14 +86,9 @@
     (error block-list)))
 
 (defun litclj--block-name-to-point-assoc-list (org-filepath)
-  (let* ((name-to-point-assoc-list (assoc org-filepath litclj-follow-file-blocks-cache)))
-    (if name-to-point-assoc-list
-        name-to-point-assoc-list
-      (let ((new-list (save-excursion
-                        (goto-char (point-min))
-                        (litclj--block-name-to-point-assoc-list-recur '()))))
-        (setq litclj-follow-file-blocks-cache (cons `(,org-filepath . ,new-list) litclj-follow-file-blocks-cache))
-        new-list))))
+  (save-excursion
+    (goto-char (point-min))
+    (litclj--block-name-to-point-assoc-list-recur '())))
 
 (defun litclj--block-name-regex (name)
   (concat ";;\s\\[.+\\["
@@ -163,8 +158,16 @@
       (forward-line)
       (forward-char point-pos))))
 
+(defun litclj--block-name-to-point-assoc-list-cached (org-filepath)
+  (let* ((name-to-point-assoc-list (assoc org-filepath litclj-follow-file-blocks-cache)))
+    (if name-to-point-assoc-list
+        name-to-point-assoc-list
+      (let ((new-list (litclj--block-name-to-point-assoc-list org-filepath)))
+        (setq litclj-follow-file-blocks-cache (cons `(,org-filepath . ,new-list) litclj-follow-file-blocks-cache))
+        new-list))))
+
 (defun litclj--org-block-point (file block-name)
-  (cdr (assoc block-name (litclj--block-name-to-point-assoc-list file))))
+  (cdr (assoc block-name (litclj--block-name-to-point-assoc-list-cached file))))
 
 (defun litclj-tangle-goto-org ()
   (interactive)
@@ -231,7 +234,6 @@
                   (not (string= (nth 2 block-infos)
                                 (nth 2 litclj-follow-last-block-infos))))
           (let ((b (current-buffer)))
-            (message "Follow")
             (litclj-tangle-goto-org)
             (switch-to-buffer-other-window b)
             (setq litclj-follow-last-block-infos block-infos)))))))
@@ -280,11 +282,34 @@
         litclj-detangle-timers)
   (setq litclj-detangle-timers '()))
 
+(defun litclj-validate-code-block-name-uniqueness ()
+  (interactive)
+  (let ((seen-names '())
+        (invalid-names '()))
+    (dolist (current (litclj--block-name-to-point-assoc-list (buffer-file-name)))
+      (when (member (car current) seen-names)
+        (setq invalid-names (cons (car current) invalid-names)))
+      (setq seen-names (cons (car current) seen-names)))
+    (when invalid-names
+      (message-box (concat "The following names are used for multiple code blocks: \n"
+                           (mapconcat 'identity invalid-names ", ")
+                           "\nThis may break tooling.")))))
+
 ;;;###autoload
 (define-minor-mode literate-clojure-mode
   "Tools for literate clojure in org-mode"
+  :init nil
   :keymap
   `((,(kbd "C-c g") . litclj-go-to-tangle)))
+
+(define-minor-mode literate-clojure-validate-mode
+  "Validate that a org mode buffer does not contain any duplicate code block names"
+  :init nil
+  (if literate-clojure-validate-mode
+      (progn
+        (litclj-validate-code-block-name-uniqueness)
+        (add-hook 'after-save-hook 'litclj-validate-code-block-name-uniqueness))
+    (remove-hook 'after-save-hook 'litclj-validate-code-block-name-uniqueness)))
 
 (define-minor-mode literate-clojure-follow-mode
   "Automatically follow org mode files from tangles clojure files."
