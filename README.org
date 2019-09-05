@@ -20,6 +20,7 @@ You can add keybindings to easily invoke interactive functions provided in the p
 #+BEGIN_SRC emacs-lisp
 (spacemacs/set-leader-keys "o o" 'litclj-tangle-goto-org)
 (spacemacs/set-leader-keys "o t" 'litclj-goto-tangle)
+(spacemacs/set-leader-keys "o d" 'litclj-detangle-all)
 #+END_SRC
 
 *** Follow mode
@@ -37,4 +38,13 @@ The auto detangle mode, as it name suggests, automatically detangles changes mad
 #+BEGIN_SRC emacs-lisp
 (require 'literate-clojure-mode)
 (add-hook 'clojure-mode-hook 'literate-clojure-auto-detangle-mode)
+#+END_SRC
+
+
+*** Validate mode
+Validates that a org mode buffer does not contain any duplicate code block names. If a buffer is invalid, it shows an annoying pop-up on every save.
+
+#+BEGIN_SRC emacs-lisp
+(require 'literate-clojure-mode)
+(add-hook 'clojure-mode-hook 'literate-clojure-validate-mode)
 #+END_SRC
