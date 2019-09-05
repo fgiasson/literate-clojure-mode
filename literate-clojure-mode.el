@@ -243,23 +243,6 @@
     (cancel-timer (cdr timer))
     (setq litclj-detangle-timers (delq timer litclj-detangle-timers))))
 
-(defun litclj--auto-detangle-current-block (begin end lenght)
-  (-let [(_ file name) (litclj--code-block-infos)]
-    (litclj--remove-detangle-timer (litclj--strip-text-properties name))
-    (let ((current-point (point))
-          (b (current-buffer)))
-      (setq litclj-detangle-timers
-            (cons `(,(litclj--strip-text-properties name) .
-                    ,(run-at-time litclj-auto-detangle-delay
-                                  nil
-                                  (lambda ()
-                                    (with-current-buffer b
-                                      (save-excursion
-                                        (goto-char current-point)
-                                        (litclj-detangle-current-block)
-                                        (litclj--remove-detangle-timer (litclj--strip-text-properties name)))))))
-                  litclj-detangle-timers)))))
-
 (defun litclj--auto-detangle-all (begin end lenght)
   (save-match-data
     (let ((b (current-buffer))
