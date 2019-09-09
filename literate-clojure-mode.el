@@ -271,10 +271,16 @@
   (interactive)
   (let ((seen-names '())
         (invalid-names '()))
-    (dolist (current (litclj--block-name-to-point-assoc-list (buffer-file-name)))
-      (when (member (car current) seen-names)
-        (setq invalid-names (cons (car current) invalid-names)))
-      (setq seen-names (cons (car current) seen-names)))
+    (save-excursion
+      (dolist (current (litclj--block-name-to-point-assoc-list (buffer-file-name)))
+        (goto-char (cdr current))
+        (forward-line)
+        (let ((tanled-property (litclj--get-block-tangle-property)))
+          (when (and (member (car current) seen-names)
+                     tanled-property
+                     (not (string= "no" tanled-property)))
+            (setq invalid-names (cons (car current) invalid-names))))
+        (setq seen-names (cons (car current) seen-names))))
     (when invalid-names
       (message-box (concat "The following names are used for multiple code blocks: \n"
                            (mapconcat 'identity invalid-names ", ")
