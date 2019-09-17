@@ -58,7 +58,9 @@
 (defun litclj--count-code-blocks-recur (n stop)
   (condition-case nil
       (if (and (> (org-previous-block 1) stop))
-          (litclj--count-code-blocks-recur (+ 1 n) stop)
+          (if (org-babel-get-src-block-info) ;; This filters out #+BEGIN_EXAMPLE blocks
+              (litclj--count-code-blocks-recur (+ 1 n) stop)
+            (litclj--count-code-blocks-recur n stop))
         n)
     (error n)))
 
