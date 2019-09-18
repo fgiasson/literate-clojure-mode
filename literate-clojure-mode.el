@@ -17,9 +17,8 @@
 (require 'dash)
 
 ;; Variables
-
-(defcustom litclj-auto-detangle-delay "500 millisec"
-  "Time delay after which a modified code block is detangled")
+(defcustom litclj-auto-detangle-delay-sec 1
+  "Time in seconds delay which a modified code block is detangled")
 
 (defvar litclj-follow-last-block-infos nil)
 (defvar litclj-follow-file-blocks-cache '())
@@ -29,7 +28,6 @@
 ;; helper functions
 (defun litclj--invalid-cache-on-tangle ()
   (setq litclj-follow-file-blocks-cache '()))
-
 (defun litclj--strip-text-properties(txt)
   (set-text-properties 0 (length txt) nil txt)
   txt)
@@ -250,18 +248,18 @@
     (let ((b (current-buffer))
           (key (buffer-file-name)))
       (when key ;; temp and special buffers are not associated with a file
-        (litclj--remove-detangle-timer key)
-        (setq litclj-detangle-timers
-              (cons `(,key .
-                           ,(run-at-time litclj-auto-detangle-delay
-                                         nil
-                                         (lambda ()
-                                           (with-current-buffer b
-                                             (save-excursion
-                                               (litclj-detangle-all)
-                                               (litclj-follow t)))
-                                           (litclj--remove-detangle-timer key))))
-                    litclj-detangle-timers))))))
+        (when (not (assoc key litclj-detangle-timers))
+          (setq litclj-detangle-timers
+                (cons `(,key .
+                             ,(run-with-idle-timer litclj-auto-detangle-delay-sec
+                                                   nil
+                                                   (lambda ()
+                                                     (with-current-buffer b
+                                                       (save-excursion
+                                                         (litclj-detangle-all)
+                                                         (litclj-follow t)))
+                                                     (litclj--remove-detangle-timer key))))
+                      litclj-detangle-timers)))))))
 
 (defun litclj--cleanup-auto-detangle ()
   (mapc (lambda (timer)
