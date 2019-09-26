@@ -245,21 +245,21 @@
 
 (defun litclj--auto-detangle-all (begin end lenght)
   (save-match-data
-    (let ((b (current-buffer))
-          (key (buffer-file-name)))
-      (when key ;; temp and special buffers are not associated with a file
-        (when (not (assoc key litclj-detangle-timers))
-          (setq litclj-detangle-timers
-                (cons `(,key .
-                             ,(run-with-idle-timer litclj-auto-detangle-delay-sec
-                                                   nil
-                                                   (lambda ()
-                                                     (with-current-buffer b
-                                                       (save-excursion
-                                                         (litclj-detangle-all)
-                                                         (litclj-follow t)))
-                                                     (litclj--remove-detangle-timer key))))
-                      litclj-detangle-timers)))))))
+    (let ((key (buffer-file-name)))
+      (when (and key ;; temp and special buffers are not associated with a file
+                 (not (assoc key litclj-detangle-timers)))
+        (let ((timer (run-with-idle-timer litclj-auto-detangle-delay-sec
+                                          nil
+                                          (lambda (b key)
+                                            (save-window-excursion
+                                              (save-excursion
+                                                (with-current-buffer b
+                                                  (litclj-detangle-all)
+                                                  (litclj-follow t))))
+                                            (litclj--remove-detangle-timer key))
+                                          (current-buffer)
+                                          key)))
+          (setq litclj-detangle-timers (cons '(key . timer) litclj-detangle-timers)))))))
 
 (defun litclj--cleanup-auto-detangle ()
   (mapc (lambda (timer)
