@@ -259,7 +259,7 @@
                                             (litclj--remove-detangle-timer key))
                                           (current-buffer)
                                           key)))
-          (setq litclj-detangle-timers (cons '(key . timer) litclj-detangle-timers)))))))
+          (setq litclj-detangle-timers (cons `(,key . ,timer) litclj-detangle-timers)))))))
 
 (defun litclj--cleanup-auto-detangle ()
   (mapc (lambda (timer)
