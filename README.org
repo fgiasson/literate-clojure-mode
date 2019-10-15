@@ -21,6 +21,7 @@ You can add keybindings to easily invoke interactive functions provided in the p
 (spacemacs/set-leader-keys "o o" 'litclj-tangle-goto-org)
 (spacemacs/set-leader-keys "o t" 'litclj-goto-tangle)
 (spacemacs/set-leader-keys "o d" 'litclj-detangle-all)
+(spacemacs/set-leader-keys "o u" 'litclj-add-tangle-test-path)
 #+END_SRC
 
 *** Follow mode

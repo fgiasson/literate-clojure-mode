@@ -25,7 +25,7 @@
 (defvar litclj-detangle-timers '())
 (defvar litclj-tangled-block-header "\\[\\[file:\\(.+\\)::.+\\]\\[\\(.+\\)\\]\\]")
 
-;; helper functions
+;; Helper functions
 (defun litclj--invalid-cache-on-tangle ()
   (setq litclj-follow-file-blocks-cache '()))
 (defun litclj--strip-text-properties(txt)
@@ -43,6 +43,14 @@
         (progn (message "This code block is not tangled")
                nil)
       path)))
+
+(defun litclj--tangle-test-path ()
+  (let ((path (litclj--get-tangle-path)))
+    (when (string-match "\\(.+\\/\\)src\\(\\/.+\\)\\.clj$" path)
+      (concat (match-string 1 path)
+              "test"
+              (match-string 2 path)
+              "_test.clj"))))
 
 (defun litclj--previous-heading-point ()
   (save-excursion
@@ -143,20 +151,6 @@
   (outline-show-all)
   (goto-char point)
   (outline-hide-other))
-
-;; Callable functions
-
-(defun litclj-goto-tangle ()
-  (interactive)
-  (when-let ((tangle-file (litclj--get-tangle-path)))
-    (let* ((block-name (litclj--current-block-name))
-           (point-pos (litclj--block-point-position)))
-      (find-file tangle-file)
-      (goto-char (point-min))
-      (re-search-forward (litclj--block-name-regex block-name))
-      (beginning-of-line)
-      (forward-line)
-      (forward-char point-pos))))
 
 (defun litclj--block-name-to-point-assoc-list-cached (org-filepath)
   (let* ((name-to-point-assoc-list (assoc org-filepath litclj-follow-file-blocks-cache)))
@@ -285,6 +279,28 @@
       (message-box (concat "The following names are used for multiple code blocks: \n"
                            (mapconcat 'identity invalid-names ", ")
                            "\nThis may break tooling.")))))
+
+;; Callable functions
+
+(defun litclj-goto-tangle ()
+  (interactive)
+  (when-let ((tangle-file (litclj--get-tangle-path)))
+    (let* ((block-name (litclj--current-block-name))
+           (point-pos (litclj--block-point-position)))
+      (find-file tangle-file)
+      (goto-char (point-min))
+      (re-search-forward (litclj--block-name-regex block-name))
+      (beginning-of-line)
+      (forward-line)
+      (forward-char point-pos))))
+
+(defun litclj-add-tangle-test-path ()
+  (interactive)
+  (save-excursion
+    (forward-line)
+    (org-previous-block 1)
+    (end-of-line)
+    (insert (concat " :tangle " (litclj--tangle-test-path)))))
 
 ;;;###autoload
 (define-minor-mode literate-clojure-mode
