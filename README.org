@@ -6,12 +6,22 @@ Set of utilities to complement a clojure literate programming workflow using org
 
 In spacemacs, follow these steps to install literate-clojure-mode:
 
-1. git =clone git@github.com:RakutenReady/literate-clojure-mode.git ~/.emacs.d/private/local/literate-clojure-mode=
+1. =git clone git@github.com:RakutenReady/literate-clojure-mode.git ~/.emacs.d/private/local/literate-clojure-mode=
 2. Add =(literate-clojure-mode :location local)= to =dotspacemacs-additional-packages=
 
 You can now enable =literate-clojure-mode=.
 
 ** Configuration
+*** Enable =literate-clojure-mode=
+
+To enable =literate-clojure-mode=, add this to your user configuration.
+
+#+BEGIN_SRC emacs-lisp
+(require 'literate-clojure-mode)
+(literate-clojure-mode t)
+#+END_SRC
+
+This will add hooks to org-mode and clojure files to enables their respective minor modes.
 
 *** Add Keybindings
 
@@ -24,28 +34,14 @@ You can add keybindings to easily invoke interactive functions provided in the p
 (spacemacs/set-leader-keys "o u" 'litclj-add-tangle-test-path)
 #+END_SRC
 
-*** Follow mode
+In spacemacs, these functions can also be invoked via =SPC SPC=.
 
-The follow mode enables to view in a split window the source of a tangled clojure code block. To enable it by default:
-#+BEGIN_SRC emacs-lisp
-(require 'literate-clojure-mode)
-(add-hook 'clojure-mode-hook 'literate-clojure-follow-mode)
-#+END_SRC
+*** Feature flags
 
-*** Auto-detangle mode
+It is possible to turn on and off specific features of =literate-clojure-mode= by setting variables.
 
-The auto detangle mode, as it name suggests, automatically detangles changes made in the clojure source files to the org mode file. To enable it by default:
-
-#+BEGIN_SRC emacs-lisp
-(require 'literate-clojure-mode)
-(add-hook 'clojure-mode-hook 'literate-clojure-auto-detangle-mode)
-#+END_SRC
-
-
-*** Validate mode
-Validates that a org mode buffer does not contain any duplicate code block names. If a buffer is invalid, it shows an annoying pop-up on every save.
-
-#+BEGIN_SRC emacs-lisp
-(require 'literate-clojure-mode)
-(add-hook 'clojure-mode-hook 'literate-clojure-validate-mode)
-#+END_SRC
+| Variable                           | Description                                                                                                                  |
+|------------------------------------+------------------------------------------------------------------------------------------------------------------------------|
+| =litclj-enable-follow-mode=        | "Enables the auto-follow mode which shows the relevant section of the org mode file relative to the current clj block code." |
+| =litclj-enable-auto-detangle-mode= | "Enables the auto-detangle mode which detangles the current clj buffer after modifications."                                 |
+| =litclj-enable-validate-mode=      | "Enables validation of org-mode files on save and load to ensure the noweb block ids are unique."                            |

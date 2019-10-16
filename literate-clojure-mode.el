@@ -16,10 +16,21 @@
 (require 'org)
 (require 'dash)
 
-;; Variables
+;; User-customizable variables
 (defcustom litclj-auto-detangle-delay-sec 1
   "Time in seconds delay which a modified code block is detangled")
 
+(defcustom litclj-enable-follow-mode t
+  "Enables the auto-follow mode which shows the relevant section of the org mode file relative to the current clj block code.")
+
+(defcustom litclj-enable-auto-detangle-mode t
+  "Enables the auto-detangle mode which detangles the current clj buffer after modifications.")
+
+(defcustom litclj-enable-validate-mode t
+  "Enables validation of org-mode files on save and load to ensure the noweb block ids are unique.")
+
+
+;; Variables
 (defvar litclj-follow-last-block-infos nil)
 (defvar litclj-follow-file-blocks-cache '())
 (defvar litclj-detangle-timers '())
@@ -132,7 +143,7 @@
   (re-search-forward (concat " " (regexp-quote block-name)
                              " ends here") nil t))
 
-(defun litclj--in-tangled-block? ()
+(defun litclj--in-tangled-block-p ()
   (save-excursion
     (-let [(_ _ block-name) (litclj--code-block-infos)]
       (litclj--search-block-end block-name))))
@@ -165,7 +176,7 @@
 
 (defun litclj-tangle-goto-org ()
   (interactive)
-  (if (litclj--in-tangled-block?)
+  (if (litclj--in-tangled-block-p)
       (-let [(_ path block-name) (litclj--code-block-infos)]
         (find-file-other-window path)
         (let ((block-point (litclj--org-block-point path block-name)))
@@ -302,16 +313,9 @@
     (end-of-line)
     (insert (concat " :tangle " (litclj--tangle-test-path)))))
 
-;;;###autoload
-(define-minor-mode literate-clojure-mode
-  "Tools for literate clojure in org-mode"
-  :init nil
-  :keymap
-  `((,(kbd "C-c g") . litclj-go-to-tangle)))
-
 (define-minor-mode literate-clojure-validate-mode
   "Validate that a org mode buffer does not contain any duplicate code block names"
-  :init nil
+  :init-value nil
   (if literate-clojure-validate-mode
       (progn
         (litclj-validate-code-block-name-uniqueness)
@@ -320,7 +324,7 @@
 
 (define-minor-mode literate-clojure-follow-mode
   "Automatically follow org mode files from tangles clojure files."
-  :init nil
+  :init-value nil
   (if literate-clojure-follow-mode
       (progn
         (add-hook 'post-command-hook 'litclj-follow nil t)
@@ -331,7 +335,7 @@
 
 (define-minor-mode literate-clojure-auto-detangle-mode
   "Automatically detangles clojure files on modification"
-  :init nil
+  :init-value nil
   (if literate-clojure-auto-detangle-mode
       (progn
         (add-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
@@ -341,6 +345,27 @@
       (remove-hook 'org-babel-pre-tangle-hook 'litclj--cleanup-auto-detangle)
       (remove-hook 'after-change-functions 'litclj--auto-detangle-all t))))
 
+;;;###autoload
+(define-minor-mode literate-clojure-mode
+  "Set of tools for literate clojure in org-mode"
+  :init-value nil
+  :global t
+  :keymap `((,(kbd "C-c g") . litclj-go-to-tangle))
+  (if literate-clojure-mode
+      (progn
+        (when litclj-enable-validate-mode
+          (add-hook 'org-mode-hook 'literate-clojure-validate-mode))
+        (when litclj-enable-follow-mode
+            (add-hook 'clojure-mode-hook 'literate-clojure-follow-mode))
+        (when litclj-enable-auto-detangle-mode
+         (add-hook 'clojure-mode-hook 'literate-clojure-auto-detangle-mode)))
+    (progn
+      (when litclj-enable-validate-mode
+        (remove-hook 'org-mode-hook 'literate-clojure-validate-mode))
+      (when litclj-enable-follow-mode
+        (remove-hook 'clojure-mode-hook 'literate-clojure-follow-mode))
+      (when litclj-enable-auto-detangle-mode
+        (remove-hook 'clojure-mode-hook 'literate-clojure-auto-detangle-mode)))))
 
 (provide 'literate-clojure-mode)
 ;;; literate-clojure-mode.el ends here
