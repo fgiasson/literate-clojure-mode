@@ -256,11 +256,14 @@
         (let ((timer (run-with-idle-timer litclj-auto-detangle-delay-sec
                                           nil
                                           (lambda (b key)
-                                            (save-window-excursion
-                                              (save-excursion
-                                                (with-current-buffer b
+                                            (message (concat "auto-detangling buffer " key))
+                                            (let ((current (current-buffer)))
+                                              (save-window-excursion
+                                                (switch-to-buffer b)
+                                                (save-excursion
                                                   (litclj-detangle-all)
-                                                  (litclj-follow t))))
+                                                  (litclj-follow t))
+                                                (switch-to-buffer current)))
                                             (litclj--remove-detangle-timer key))
                                           (current-buffer)
                                           key)))
